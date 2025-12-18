@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>趁火打劫：火中取栗 - 三十六计第五计</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            background: linear-gradient(135deg, #1a0000 0%, #4a0000 50%, #1a0000 100%);
+            color: #fff;
+            overflow: hidden;
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #uiOverlay {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            flex-wrap: wrap;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .stat-item {
+                font-size: 12px;
+            }
+            .top-bar {
+                padding: 8px 10px;
+            }
+        }
+
+        .chaos-bar-container {
+            flex: 1;
+            min-width: 150px;
+            max-width: 300px;
+        }
+
+        .chaos-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(100, 0, 0, 0.5);
+            border: 2px solid #ff6600;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chaos-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff3300 0%, #ff6600 50%, #ff9900 100%);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 102, 0, 0.8);
+        }
+
+        .middle-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            pointer-events: auto;
+        }
+
+        .treasure-box {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            border: 3px solid #FFD700;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            position: relative;
+            pointer-events: auto;
+        }
+
+        .treasure-box:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+        }
+
+        .treasure-box.active {
+            animation: glow 1s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 1); }
+        }
+
+        .treasure-box.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .items-bar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            pointer-events: auto;
+        }
+
+        .item-slot {
+            width: 60px;
+            height: 60px;
+            background: rgba(50, 50, 50, 0.8);
+            border: 2px solid #666;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .item-slot:hover {
+            border-color: #ffaa00;
+            transform: scale(1.1);
+        }
+
+        .item-slot.available {
+            border-color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .item-slot.cooldown {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .item-slot.cooldown::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 6px;
+        }
+
+        .cooldown-text {
+            position: absolute;
+            font-size: 12px;
+            color: #fff;
+            z-index: 1;
+        }
+
+        .bottom-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            flex-wrap: wrap;
+            pointer-events: auto;
+        }
+
+        .game-btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            min-width: 120px;
+        }
+
+        .game-btn:hover {
+            background: linear-gradient(135deg, #A0522D 0%, #CD853F 100%);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+        }
+
+        .game-btn:active {
+            transform: scale(0.95);
+        }
+
+        .game-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .game-btn {
+                padding: 15px 20px;
+                font-size: 18px;
+                min-width: 140px;
+            }
+            .treasure-box {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+            }
+            .middle-area {
+                gap: 10px;
+                padding: 10px;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #2a1a0a 0%, #4a2a1a 100%);
+            border: 3px solid #FFD700;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.5);
+        }
+
+        .modal-content h2 {
+            color: #FFD700;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .modal-content p {
+            margin: 15px 0;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .modal-btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .modal-btn:hover {
+            background: linear-gradient(135deg, #A0522D 0%, #CD853F 100%);
+            transform: scale(1.05);
+        }
+
+        .event-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 100, 0, 0.95);
+            border: 3px solid #ff6600;
+            border-radius: 10px;
+            padding: 20px;
+            z-index: 999;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            animation: popup 0.5s;
+            pointer-events: none;
+        }
+
+        @keyframes popup {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .tutorial-content {
+            background: linear-gradient(135deg, #1a0a00 0%, #3a1a0a 100%);
+            border: 3px solid #ff6600;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: left;
+        }
+
+        .tutorial-content h3 {
+            color: #ff6600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .tutorial-content ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .tutorial-content li {
+            margin: 10px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .tutorial-content li::before {
+            content: '🔥';
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="uiOverlay">
+            <div class="top-bar">
+                <div class="stat-item">
+                    <span>乱度:</span>
+                    <div class="chaos-bar-container">
+                        <div class="chaos-bar">
+                            <div class="chaos-fill" id="chaosFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    <span id="chaosPercent">0%</span>
+                </div>
+                <div class="stat-item">
+                    <span>💰粮草:</span>
+                    <span id="foodCount">0</span>/1000
+                </div>
+                <div class="stat-item">
+                    <span>🌊波次:</span>
+                    <span id="waveCount">1</span>/∞
+                </div>
+                <div class="stat-item">
+                    <span>⭐高分:</span>
+                    <span id="highScore">0</span>
+                </div>
+            </div>
+
+            <div class="middle-area">
+                <div class="treasure-box" id="foodBox" title="抢粮箱 - 风险低">🌾</div>
+                <div class="treasure-box" id="goldBox" title="抢金库 - 高回报">💰</div>
+                <div class="treasure-box" id="allBox" title="全抢 - 贪心大奖">💎</div>
+            </div>
+
+            <div class="items-bar" style="justify-content: center; margin: 10px 0;">
+                <div class="item-slot" id="itemInvisible" title="隐身 - 降低风险30%">👻</div>
+                <div class="item-slot" id="itemHorse" title="快马 - 单次抢50%">🐎</div>
+                <div class="item-slot" id="itemBribe" title="贿赂 - 降低乱度20%">💰</div>
+            </div>
+
+            <div class="bottom-bar">
+                <button class="game-btn" id="btnFood">抢粮箱(-风险低)</button>
+                <button class="game-btn" id="btnGold">抢金库(高回报)</button>
+                <button class="game-btn" id="btnAll">全抢(贪心大奖)</button>
+            </div>
+        </div>
+
+        <div id="tutorialModal" class="modal">
+            <div class="tutorial-content">
+                <h3>🔥 趁火打劫：火中取栗 🔥</h3>
+                <p style="text-align: center; margin-bottom: 15px;">三十六计第五计</p>
+                <ul>
+                    <li>等待乱度上升，趁敌城混乱时行动</li>
+                    <li>抢粮箱风险低但收益小</li>
+                    <li>抢金库收益高但风险大</li>
+                    <li>全抢收益最大但风险极高</li>
+                    <li>乱度>70%时风险翻倍</li>
+                    <li>使用道具可以降低风险或增加收益</li>
+                    <li>目标：收集1000粮草获胜</li>
+                </ul>
+                <button class="modal-btn" onclick="startGame()">开始游戏</button>
+            </div>
+        </div>
+
+        <div id="endModal" class="modal">
+            <div class="modal-content">
+                <h2 id="endTitle">游戏结束</h2>
+                <p id="endMessage"></p>
+                <p id="endScore"></p>
+                <button class="modal-btn" onclick="restartGame()">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 游戏状态 ====================
+        const gameState = {
+            chaos: 0,           // 乱度 0-100
+            food: 0,            // 粮草
+            wave: 1,            // 当前波次
+            highScore: 0,       // 最高分
+            caught: 0,          // 被抓次数
+            gameRunning: false,
+            nextDisasterTime: 0,
+            disasterInterval: 20000, // 20秒一波
+            items: {
+                invisible: { available: true, cooldown: 0, cdTime: 15000 },
+                horse: { available: true, cooldown: 0, cdTime: 0 },
+                bribe: { available: true, cooldown: 0, cdTime: 0 }
+            },
+            horseUsed: false,   // 快马是否已使用
+            seed: Date.now()    // 随机种子
+        };
+
+        // ==================== Canvas 设置 ====================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let canvasWidth = window.innerWidth;
+        let canvasHeight = window.innerHeight;
+
+        function resizeCanvas() {
+            canvasWidth = window.innerWidth;
+            canvasHeight = window.innerHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==================== 粒子系统 ====================
+        const particles = [];
+        const fireParticles = [];
+        const thiefParticles = [];
+
+        class Particle {
+            constructor(x, y, vx, vy, color, life = 60) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.life = life;
+                this.maxLife = life;
+                this.size = Math.random() * 3 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1; // 重力
+                this.life--;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            isDead() {
+                return this.life <= 0 || this.x < 0 || this.x > canvasWidth || this.y > canvasHeight;
+            }
+        }
+
+        // ==================== 随机数生成器（带种子）====================
+        let rngSeed = gameState.seed;
+        function random() {
+            rngSeed = (rngSeed * 9301 + 49297) % 233280;
+            return rngSeed / 233280;
+        }
+
+        function randomInt(min, max) {
+            return Math.floor(random() * (max - min + 1)) + min;
+        }
+
+        // ==================== 音效系统 ====================
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                switch(type) {
+                    case 'fire':
+                        oscillator.frequency.value = 100 + random() * 50;
+                        oscillator.type = 'sawtooth';
+                        gainNode.gain.value = 0.1;
+                        oscillator.start();
+                        oscillator.stop(audioContext.currentTime + 0.1);
+                        break;
+                    case 'success':
+                        oscillator.frequency.value = 400;
+                        oscillator.type = 'sine';
+                        gainNode.gain.value = 0.2;
+                        oscillator.start();
+                        oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.2);
+                        oscillator.stop(audioContext.currentTime + 0.3);
+                        break;
+                    case 'fail':
+                        oscillator.frequency.value = 200;
+                        oscillator.type = 'sawtooth';
+                        gainNode.gain.value = 0.2;
+                        oscillator.start();
+                        oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3);
+                        oscillator.stop(audioContext.currentTime + 0.4);
+                        break;
+                    case 'victory':
+                        for(let i = 0; i < 5; i++) {
+                            setTimeout(() => {
+                                const osc = audioContext.createOscillator();
+                                const gain = audioContext.createGain();
+                                osc.connect(gain);
+                                gain.connect(audioContext.destination);
+                                osc.frequency.value = 300 + i * 100;
+                                osc.type = 'sine';
+                                gain.gain.value = 0.15;
+                                osc.start();
+                                osc.stop(audioContext.currentTime + 0.2);
+                            }, i * 100);
+                        }
+                        break;
+                }
+            } catch(e) {
+                // 音效失败不影响游戏
+            }
+        }
+
+        // ==================== 绘制游戏画面 ====================
+        function drawGame() {
+            // 清空画布
+            ctx.fillStyle = '#1a0000';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // 绘制火光渐变背景
+            const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+            gradient.addColorStop(0, '#4a0000');
+            gradient.addColorStop(0.3, '#8a2000');
+            gradient.addColorStop(0.6, '#ff3300');
+            gradient.addColorStop(1, '#4a0000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // 绘制敌城（右侧）
+            const cityX = canvasWidth * 0.7;
+            const cityY = canvasHeight * 0.3;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(cityX, cityY, 150, 200);
+            ctx.fillStyle = '#ff6600';
+            ctx.fillRect(cityX + 20, cityY + 50, 110, 150);
+            
+            // 绘制火焰
+            for(let i = 0; i < 20; i++) {
+                const fx = cityX + 20 + random() * 110;
+                const fy = cityY + 50 + random() * 150;
+                ctx.fillStyle = `rgba(255, ${100 + random() * 155}, 0, ${0.6 + random() * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(fx, fy, 10 + random() * 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 绘制山寨（左侧）
+            const baseX = canvasWidth * 0.1;
+            const baseY = canvasHeight * 0.5;
+            ctx.fillStyle = '#2a4a2a';
+            ctx.fillRect(baseX, baseY, 100, 120);
+            ctx.fillStyle = '#4a6a4a';
+            ctx.fillRect(baseX + 10, baseY + 10, 80, 100);
+
+            // 绘制粮草条（山寨内）
+            const foodBarWidth = 60;
+            const foodBarHeight = 10;
+            const foodBarX = baseX + 20;
+            const foodBarY = baseY + 80;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(foodBarX, foodBarY, foodBarWidth, foodBarHeight);
+            ctx.fillStyle = '#00ff00';
+            const foodPercent = Math.min(gameState.food / 1000, 1);
+            ctx.fillRect(foodBarX, foodBarY, foodBarWidth * foodPercent, foodBarHeight);
+
+            // 绘制街巷混乱（贼兵）
+            for(let i = 0; i < 5; i++) {
+                const thiefX = canvasWidth * 0.3 + random() * canvasWidth * 0.4;
+                const thiefY = canvasHeight * 0.4 + random() * canvasHeight * 0.3;
+                ctx.font = '30px Arial';
+                ctx.fillText('🏺', thiefX, thiefY);
+            }
+
+            // 更新和绘制粒子
+            for(let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if(particles[i].isDead()) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 绘制火焰粒子
+            for(let i = fireParticles.length - 1; i >= 0; i--) {
+                fireParticles[i].update();
+                fireParticles[i].draw();
+                if(fireParticles[i].isDead()) {
+                    fireParticles[i].x = cityX + 20 + random() * 110;
+                    fireParticles[i].y = cityY + 200;
+                    fireParticles[i].vx = (random() - 0.5) * 2;
+                    fireParticles[i].vy = -random() * 3 - 1;
+                    fireParticles[i].life = fireParticles[i].maxLife;
+                }
+            }
+
+            // 持续生成火焰粒子
+            if(fireParticles.length < 30) {
+                fireParticles.push(new Particle(
+                    cityX + 20 + random() * 110,
+                    cityY + 200,
+                    (random() - 0.5) * 2,
+                    -random() * 3 - 1,
+                    `rgb(255, ${100 + random() * 155}, 0)`,
+                    60
+                ));
+            }
+        }
+
+        // ==================== 显示事件弹窗 ====================
+        function showEventPopup(text) {
+            const popup = document.createElement('div');
+            popup.className = 'event-popup';
+            popup.textContent = text;
+            document.body.appendChild(popup);
+            setTimeout(() => {
+                popup.style.animation = 'popup 0.5s reverse';
+                setTimeout(() => popup.remove(), 500);
+            }, 2000);
+        }
+
+        // ==================== 生成胜利粒子 ====================
+        function createVictoryParticles() {
+            for(let i = 0; i < 100; i++) {
+                particles.push(new Particle(
+                    canvasWidth / 2,
+                    canvasHeight / 2,
+                    (random() - 0.5) * 10,
+                    (random() - 0.5) * 10 - 5,
+                    `rgb(255, ${200 + random() * 55}, 0)`,
+                    120
+                ));
+            }
+        }
+
+        // ==================== 灾难事件 ====================
+        function triggerDisaster() {
+            const disasterType = randomInt(1, 3);
+            let chaosIncrease = 0;
+            let message = '';
+
+            switch(disasterType) {
+                case 1: // 火灾
+                    chaosIncrease = 20;
+                    message = '🔥 敌城大火！乱度+20%';
+                    playSound('fire');
+                    break;
+                case 2: // 叛乱
+                    chaosIncrease = 30;
+                    message = '⚔️ 敌城叛乱！乱度+30%';
+                    break;
+                case 3: // 洪水
+                    chaosIncrease = 15;
+                    message = '🌊 洪水来袭！乱度+15%，宝箱亮起！';
+                    // 激活所有宝箱
+                    document.getElementById('foodBox').classList.add('active');
+                    document.getElementById('goldBox').classList.add('active');
+                    document.getElementById('allBox').classList.add('active');
+                    setTimeout(() => {
+                        document.getElementById('foodBox').classList.remove('active');
+                        document.getElementById('goldBox').classList.remove('active');
+                        document.getElementById('allBox').classList.remove('active');
+                    }, 5000);
+                    break;
+            }
+
+            gameState.chaos = Math.min(100, gameState.chaos + chaosIncrease);
+            showEventPopup(message);
+            updateUI();
+        }
+
+        // ==================== 随机事件 ====================
+        function triggerRandomEvent() {
+            if(random() < 0.2) { // 20%概率
+                if(random() < 0.5) {
+                    // 敌将追击
+                    gameState.food = Math.max(0, gameState.food - 100);
+                    showEventPopup('⚔️ 敌将怒追！翻车-100粮');
+                    playSound('fail');
+                } else {
+                    // 民众感谢
+                    gameState.food += 100;
+                    showEventPopup('🙏 民众感谢！+100粮，名声+1');
+                    playSound('success');
+                }
+                updateUI();
+            }
+        }
+
+        // ==================== 抢劫行动 ====================
+        function attemptRobbery(type, baseRisk, reward) {
+            if(!gameState.gameRunning) return;
+
+            let risk = baseRisk;
+            let finalReward = reward;
+
+            // 乱度>70%风险翻倍
+            if(gameState.chaos > 70) {
+                risk *= 2;
+            }
+
+            // 检查是否使用快马
+            if(gameState.items.horse.available && gameState.horseUsed === false) {
+                finalReward = Math.floor(reward * 1.5);
+                gameState.horseUsed = true;
+                gameState.items.horse.available = false;
+                updateItemUI();
+            }
+
+            // 检查是否使用隐身
+            if(gameState.items.invisible.available && gameState.items.invisible.cooldown === 0) {
+                risk = Math.max(0, risk - 30);
+                gameState.items.invisible.cooldown = gameState.items.invisible.cdTime;
+                gameState.items.invisible.available = false;
+                updateItemUI();
+                setTimeout(() => {
+                    gameState.items.invisible.available = true;
+                    updateItemUI();
+                }, gameState.items.invisible.cdTime);
+            }
+
+            // 判断是否成功
+            const success = random() * 100 >= risk;
+
+            if(success) {
+                gameState.food += finalReward;
+                showEventPopup(`✅ 成功！+${finalReward}粮`);
+                playSound('success');
+                
+                // 创建成功粒子
+                for(let i = 0; i < 20; i++) {
+                    particles.push(new Particle(
+                        canvasWidth / 2,
+                        canvasHeight / 2,
+                        (random() - 0.5) * 5,
+                        (random() - 0.5) * 5 - 2,
+                        `rgb(255, ${200 + random() * 55}, 0)`,
+                        60
+                    ));
+                }
+            } else {
+                gameState.caught++;
+                gameState.food = Math.max(0, gameState.food - 100);
+                showEventPopup('❌ 被抓！-100粮，重置乱度');
+                gameState.chaos = 0;
+                playSound('fail');
+                
+                // 创建失败粒子（灰色）
+                for(let i = 0; i < 30; i++) {
+                    particles.push(new Particle(
+                        canvasWidth / 2,
+                        canvasHeight / 2,
+                        (random() - 0.5) * 8,
+                        (random() - 0.5) * 8 - 3,
+                        `rgb(100, 100, 100)`,
+                        80
+                    ));
+                }
+            }
+
+            // 触发随机事件
+            triggerRandomEvent();
+
+            updateUI();
+            checkGameEnd();
+        }
+
+        // ==================== 使用道具 ====================
+        function useItem(itemType) {
+            if(!gameState.gameRunning) return;
+
+            switch(itemType) {
+                case 'invisible':
+                    if(gameState.items.invisible.cooldown > 0) return;
+                    // 隐身在使用抢劫时自动触发
+                    showEventPopup('👻 隐身已激活，下次抢劫降低风险');
+                    break;
+                case 'horse':
+                    if(!gameState.items.horse.available || gameState.horseUsed) return;
+                    gameState.horseUsed = true;
+                    gameState.items.horse.available = false;
+                    showEventPopup('🐎 快马已激活，下次抢劫+50%收益');
+                    updateItemUI();
+                    break;
+                case 'bribe':
+                    gameState.chaos = Math.max(0, gameState.chaos - 20);
+                    showEventPopup('💰 贿赂成功！乱度-20%');
+                    playSound('success');
+                    updateUI();
+                    break;
+            }
+        }
+
+        // ==================== 更新UI ====================
+        function updateUI() {
+            document.getElementById('chaosFill').style.width = gameState.chaos + '%';
+            document.getElementById('chaosPercent').textContent = Math.round(gameState.chaos) + '%';
+            document.getElementById('foodCount').textContent = gameState.food;
+            document.getElementById('waveCount').textContent = gameState.wave;
+            document.getElementById('highScore').textContent = gameState.highScore;
+
+            // 更新乱度条颜色
+            const chaosFill = document.getElementById('chaosFill');
+            if(gameState.chaos > 70) {
+                chaosFill.style.background = 'linear-gradient(90deg, #ff0000 0%, #ff3300 50%, #ff6600 100%)';
+            } else {
+                chaosFill.style.background = 'linear-gradient(90deg, #ff3300 0%, #ff6600 50%, #ff9900 100%)';
+            }
+        }
+
+        function updateItemUI() {
+            // 隐身
+            const invisibleSlot = document.getElementById('itemInvisible');
+            if(gameState.items.invisible.cooldown > 0) {
+                invisibleSlot.classList.add('cooldown');
+                invisibleSlot.querySelector('.cooldown-text')?.remove();
+                const cdText = document.createElement('div');
+                cdText.className = 'cooldown-text';
+                cdText.textContent = Math.ceil(gameState.items.invisible.cooldown / 1000);
+                invisibleSlot.appendChild(cdText);
+            } else {
+                invisibleSlot.classList.remove('cooldown');
+                invisibleSlot.querySelector('.cooldown-text')?.remove();
+                if(gameState.items.invisible.available) {
+                    invisibleSlot.classList.add('available');
+                } else {
+                    invisibleSlot.classList.remove('available');
+                }
+            }
+
+            // 快马
+            const horseSlot = document.getElementById('itemHorse');
+            if(gameState.items.horse.available && !gameState.horseUsed) {
+                horseSlot.classList.add('available');
+            } else {
+                horseSlot.classList.remove('available');
+            }
+
+            // 贿赂
+            const bribeSlot = document.getElementById('itemBribe');
+            bribeSlot.classList.add('available');
+        }
+
+        // ==================== 检查游戏结束 ====================
+        function checkGameEnd() {
+            if(gameState.food >= 1000) {
+                // 胜利
+                gameState.gameRunning = false;
+                const score = Math.floor(gameState.food * Math.pow(1.2, 3 - Object.values(gameState.items).filter(i => i.available).length));
+                if(score > gameState.highScore) {
+                    gameState.highScore = score;
+                    localStorage.setItem('highScore', gameState.highScore);
+                }
+
+                playSound('victory');
+                createVictoryParticles();
+
+                let title = '🎉 大胜！';
+                let message = '';
+                if(gameState.food >= 1500) {
+                    message = '仁义之师！你不仅获得了胜利，还赢得了民心！\n\n';
+                    message += '「趁火打劫」出自《三十六计》，指趁人家失火时去抢劫。\n';
+                    message += '比喻乘人之危谋取私利。在战争中，要善于抓住敌人的弱点，\n';
+                    message += '在敌人处于混乱、危机时发动攻击，往往能取得事半功倍的效果。\n\n';
+                } else {
+                    message = '成功趁火打劫！你抓住了敌人的混乱时机，获得了胜利！\n\n';
+                    message += '「趁火打劫」出自《三十六计》，指趁人家失火时去抢劫。\n';
+                    message += '比喻乘人之危谋取私利。在战争中，要善于抓住敌人的弱点，\n';
+                    message += '在敌人处于混乱、危机时发动攻击，往往能取得事半功倍的效果。\n\n';
+                }
+                message += `最终粮草：${gameState.food}\n`;
+                message += `游戏分数：${score}\n`;
+                message += `最高分：${gameState.highScore}`;
+
+                document.getElementById('endTitle').textContent = title;
+                document.getElementById('endMessage').textContent = message;
+                document.getElementById('endScore').textContent = '';
+                document.getElementById('endModal').classList.add('active');
+            } else if(gameState.food < 0 || gameState.caught >= 3) {
+                // 失败
+                gameState.gameRunning = false;
+                playSound('fail');
+
+                const title = '🔥 火烤山贼！';
+                let message = '你被敌人抓住了！趁火打劫失败！\n\n';
+                message += '「趁火打劫」虽是好计，但也要审时度势，\n';
+                message += '不能贪心过度，否则反而会引火烧身。\n\n';
+                message += `最终粮草：${gameState.food}\n`;
+                message += `被抓次数：${gameState.caught}\n`;
+                message += `最高分：${gameState.highScore}`;
+
+                document.getElementById('endTitle').textContent = title;
+                document.getElementById('endMessage').textContent = message;
+                document.getElementById('endScore').textContent = '';
+                document.getElementById('endModal').classList.add('active');
+            }
+        }
+
+        // ==================== 游戏主循环 ====================
+        function gameLoop() {
+            if(!gameState.gameRunning) return;
+
+            const now = Date.now();
+
+            // 更新道具冷却
+            if(gameState.items.invisible.cooldown > 0) {
+                gameState.items.invisible.cooldown = Math.max(0, gameState.items.invisible.cooldown - 16);
+                updateItemUI();
+            }
+
+            // 检查灾难事件
+            if(now >= gameState.nextDisasterTime) {
+                triggerDisaster();
+                gameState.nextDisasterTime = now + gameState.disasterInterval;
+                gameState.wave++;
+            }
+
+            // 绘制游戏
+            drawGame();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ==================== 开始游戏 ====================
+        function startGame() {
+            document.getElementById('tutorialModal').classList.remove('active');
+            
+            // 重置游戏状态
+            gameState.chaos = 0;
+            gameState.food = 0;
+            gameState.wave = 1;
+            gameState.caught = 0;
+            gameState.gameRunning = true;
+            gameState.nextDisasterTime = Date.now() + gameState.disasterInterval;
+            gameState.items.invisible.available = true;
+            gameState.items.invisible.cooldown = 0;
+            gameState.items.horse.available = true;
+            gameState.items.bribe.available = true;
+            gameState.horseUsed = false;
+            gameState.seed = Date.now();
+            rngSeed = gameState.seed;
+
+            // 加载最高分
+            const savedHighScore = localStorage.getItem('highScore');
+            if(savedHighScore) {
+                gameState.highScore = parseInt(savedHighScore);
+            }
+
+            particles.length = 0;
+            fireParticles.length = 0;
+
+            updateUI();
+            updateItemUI();
+            gameLoop();
+        }
+
+        // ==================== 重新开始 ====================
+        function restartGame() {
+            document.getElementById('endModal').classList.remove('active');
+            document.getElementById('tutorialModal').classList.add('active');
+        }
+
+        // ==================== 事件绑定 ====================
+        document.getElementById('btnFood').addEventListener('click', () => {
+            attemptRobbery('food', 10, 200);
+        });
+
+        document.getElementById('btnGold').addEventListener('click', () => {
+            attemptRobbery('gold', 20, 400);
+        });
+
+        document.getElementById('btnAll').addEventListener('click', () => {
+            attemptRobbery('all', 40, 700);
+        });
+
+        document.getElementById('itemInvisible').addEventListener('click', () => {
+            useItem('invisible');
+        });
+
+        document.getElementById('itemHorse').addEventListener('click', () => {
+            useItem('horse');
+        });
+
+        document.getElementById('itemBribe').addEventListener('click', () => {
+            useItem('bribe');
+        });
+
+        // 触摸事件支持（移动端）
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            // 简单的拖拽检测（可以扩展为道具拖拽）
+            if(Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+                // 点击事件已由按钮处理
+            }
+        }, { passive: true });
+
+        // ==================== 初始化 ====================
+        window.addEventListener('load', () => {
+            // 加载最高分
+            const savedHighScore = localStorage.getItem('highScore');
+            if(savedHighScore) {
+                gameState.highScore = parseInt(savedHighScore);
+                updateUI();
+            }
+
+            // 显示教程
+            document.getElementById('tutorialModal').classList.add('active');
+
+            // 开始绘制（即使游戏未开始也绘制背景）
+            function initDraw() {
+                drawGame();
+                if(!gameState.gameRunning) {
+                    requestAnimationFrame(initDraw);
+                }
+            }
+            initDraw();
+        });
+
+        // 防止页面滚动（移动端）
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
